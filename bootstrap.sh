@@ -53,6 +53,14 @@ main() {
 	    "$ROOT_DIR/install/docker.sh"
             ;;
     esac
+
+    case "$PROFILE" in 
+        development|embedded|full)
+            echo
+            log_info "Running VS Code configuration..."
+            "$ROOT_DIR/install/vscode.sh"
+            ;;
+    esac
    
     echo 
     log_info "Installing managed dotfiles..."
