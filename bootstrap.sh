@@ -42,6 +42,14 @@ main() {
 
     "$ROOT_DIR/install/python.sh"
 
+    case "$PROFILE" in
+	development|embedded|ai|full)
+	    echo
+	    log_info "Running Node.js installation..."
+            "$ROOT_DIR/install/node.sh"
+            ;;
+    esac
+   
     echo
     log_ok "Bootstrap framework loaded successfully."
 }
