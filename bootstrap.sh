@@ -47,6 +47,10 @@ main() {
 	    echo
 	    log_info "Running Node.js installation..."
             "$ROOT_DIR/install/node.sh"
+
+	    echo 
+            log_info "Running Docker installation..."
+	    "$ROOT_DIR/install/docker.sh"
             ;;
     esac
    
