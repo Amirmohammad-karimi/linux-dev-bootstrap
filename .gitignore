@@ -1,0 +1,45 @@
+# Secrets
+.env
+.env.*
+!*.env.example
+secrets.env
+secrets/
+*.key
+*.pem
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*~
+
+# Downloaded files
+*.deb
+*.rpm
+*.tar
+*.tar.gz
+*.zip
+*.AppImage
+*.vsix
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
