@@ -33,8 +33,17 @@ main() {
     esac
 
     echo
+    log_info "Running base installation..."
+
+    "$ROOT_DIR/install/base.sh"
+
+    echo
+    log_info "Running Python installation..."
+
+    "$ROOT_DIR/install/python.sh"
+
+    echo
     log_ok "Bootstrap framework loaded successfully."
-    log_info "Install modules will be connected in the next steps."
 }
 
 main "$@"
