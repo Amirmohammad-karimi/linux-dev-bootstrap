@@ -61,7 +61,15 @@ main() {
             "$ROOT_DIR/install/vscode.sh"
             ;;
     esac
-   
+
+    case "$PROFILE" in
+    embedded|full)
+        echo
+        log_info "Running STM32 environment setup..."
+        "$ROOT_DIR/install/stm32.sh"
+        ;;
+    esac 
+  
     echo 
     log_info "Installing managed dotfiles..."
     "$ROOT_DIR/scripts/setup-dotfiles.sh"	

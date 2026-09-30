@@ -17,3 +17,7 @@ fi
 if [ -s "$NVM_DIR/bash_completion" ]; then
     . "$NVM_DIR/bash_completion"
 fi
+
+# STM32Cube
+export CUBE_BUNDLE_PATH="$HOME/.local/share/stm32cube/bundles"
+export CMSIS_PACK_ROOT="$HOME/.local/share/stm32cube/packs"

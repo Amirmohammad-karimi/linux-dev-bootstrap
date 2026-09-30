@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+CUBE_BIN="$(
+    find "$HOME/.vscode-server/extensions" \
+        -path '*/stmicroelectronics.stm32cube-ide-core-*/*' \
+        -type f \
+        -name cube \
+        -perm -111 \
+        -print \
+        -quit \
+        2>/dev/null
+)"
+
+if [[ -z "$CUBE_BIN" ]]; then
+    echo "STM32Cube cube CLI was not found in WSL." >&2
+    exit 127
+fi
+
+exec "$CUBE_BIN" "$@"

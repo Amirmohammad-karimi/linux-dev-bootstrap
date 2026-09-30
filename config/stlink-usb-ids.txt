@@ -1,0 +1,18 @@
+# Supported ST-LINK USB VID:PID values.
+# Add/remove programmers here without modifying any scripts.
+
+# ST-LINK/V1
+0483:3744
+
+# ST-LINK/V2
+0483:3748
+
+# ST-LINK/V2-1
+0483:374b
+0483:3752
+
+# ST-LINK/V3
+0483:374d
+0483:374e
+0483:374f
+0483:3753
