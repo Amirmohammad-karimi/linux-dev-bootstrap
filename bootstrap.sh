@@ -54,8 +54,12 @@ main() {
             ;;
     esac
    
+    echo 
+    log_info "Installing managed dotfiles..."
+    "$ROOT_DIR/scripts/setup-dotfiles.sh"	
+
     echo
-    log_ok "Bootstrap framework loaded successfully."
+    log_ok "Bootstrap completed successfully."
 }
 
 main "$@"

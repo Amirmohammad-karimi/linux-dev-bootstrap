@@ -74,21 +74,7 @@ install_node() {
 }
 
 configure_shell() {
-    log_info "Configuring nvm for Bash..."
-
-    append_line_if_missing \
-        'export NVM_DIR="$HOME/.nvm"' \
-        "$HOME/.bashrc"
-
-    append_line_if_missing \
-        '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' \
-        "$HOME/.bashrc"
-
-    append_line_if_missing \
-        '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' \
-        "$HOME/.bashrc"
-
-    log_ok "nvm Bash configuration installed."
+    log_ok "Node.js shell configuration is managed by linux-bootstrap dotfiles."
 }
 
 verify_node() {
