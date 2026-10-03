@@ -245,51 +245,60 @@ verify_stlink() {
         return 0
     fi
 
+    local attempt
+    local max_attempts=10
     local id
     local found=0
 
-    while IFS= read -r id || [[ -n "$id" ]]; do
+    for ((attempt=1; attempt<=max_attempts; attempt++)); do
 
-        id="${id%%#*}"
-        id="$(printf '%s' "$id" | xargs)"
+        found=0
 
-        [[ -z "$id" ]] && continue
+        while IFS= read -r id || [[ -n "$id" ]]; do
+            id="${id%%#*}"
+            id="$(printf '%s' "$id" | xargs)"
 
-        local line
-        line="$(lsusb -d "$id" 2>/dev/null | head -n1 || true)"
+            [[ -z "$id" ]] && continue
 
-        [[ -z "$line" ]] && continue
+            local line
+            line="$(lsusb -d "$id" 2>/dev/null | head -n1 || true)"
 
-        found=1
+            [[ -z "$line" ]] && continue
 
-        local device
-        device="$(
-            awk '{
-                gsub(":","",$4)
-                print "/dev/bus/usb/"$2"/"$4
-            }' <<< "$line"
-        )"
+            found=1
 
-        log_ok "ST-LINK $id detected"
+            local device
+            device="$(
+                awk '{
+                    gsub(":","",$4)
+                    print "/dev/bus/usb/"$2"/"$4
+                }' <<< "$line"
+            )"
 
-        printf '  Device:      %s\n' "$device"
+            log_ok "ST-LINK $id detected"
+            printf '  Device:      %s\n' "$device"
 
-        if [[ -e "$device" ]]; then
-            printf '  Permissions: %s\n' \
-                "$(stat -c '%A %U %G' "$device")"
+            if [[ -e "$device" ]]; then
+                printf '  Permissions: %s\n' \
+                    "$(stat -c '%A %U %G' "$device")"
 
-            if [[ -r "$device" && -w "$device" ]]; then
-                log_ok "Current user has read/write access."
-            else
-                log_warn "Current user lacks read/write access."
+                if [[ -r "$device" && -w "$device" ]]; then
+                    log_ok "Current user has read/write access."
+                else
+                    log_warn "Current user lacks read/write access."
+                fi
             fi
+
+        done < "$usb_ids_file"
+
+        [[ "$found" -eq 1 ]] && return 0
+
+        if [[ "$attempt" -lt "$max_attempts" ]]; then
+            sleep 1
         fi
+    done
 
-    done < "$usb_ids_file"
-
-    if [[ "$found" -eq 0 ]]; then
-        log_warn "No configured ST-LINK programmer is visible inside Linux."
-    fi
+    log_warn "No configured ST-LINK programmer is visible inside Linux."
 }
 
 main() {

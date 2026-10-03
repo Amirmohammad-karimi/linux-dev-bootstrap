@@ -1,0 +1,11 @@
+# Linux scripts/configuration
+*.sh  text eol=lf
+*.env text eol=lf
+
+# Windows PowerShell
+*.ps1 text eol=crlf
+
+# Common text formats
+*.json text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
