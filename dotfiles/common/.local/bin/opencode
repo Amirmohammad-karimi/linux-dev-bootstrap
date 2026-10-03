@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+OPENCODE="$HOME/.opencode/bin/opencode"
+
+if [[ ! -x "$OPENCODE" ]]; then
+    echo "OpenCode is not installed." >&2
+    exit 127
+fi
+
+exec "$OPENCODE" "$@"

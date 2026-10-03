@@ -24,11 +24,3 @@ export CMSIS_PACK_ROOT="$HOME/.local/share/stm32cube/packs"
 
 # STM32CubeMX
 export STM32CubeMX_PATH="$HOME/.local/opt/stm32cubemx/current"
-
-# OpenCode
-if [[ -d "$HOME/.opencode/bin" ]]; then
-    case ":$PATH:" in
-        *":$HOME/.opencode/bin:"*) ;;
-        *) export PATH="$HOME/.opencode/bin:$PATH" ;;
-    esac
-fi
