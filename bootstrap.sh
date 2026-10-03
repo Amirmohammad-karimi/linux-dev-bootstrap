@@ -67,8 +67,20 @@ main() {
         echo
         log_info "Running STM32 environment setup..."
         "$ROOT_DIR/install/stm32.sh"
+    
+        echo 
+        log_info "Running STM32CubeMX setup..."
+        "$ROOT_DIR/install/cubemx.sh"
         ;;
     esac 
+
+    case "$PROFILE" in 
+    ai|full)
+        echo 
+        log_info "Running AI development tools setup..."
+	"$ROOT_DIR/install/ai-tools.sh"
+	;;
+    esac
   
     echo 
     log_info "Installing managed dotfiles..."
