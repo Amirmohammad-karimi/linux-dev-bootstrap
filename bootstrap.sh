@@ -51,7 +51,11 @@ main() {
 	    echo 
             log_info "Running Docker installation..."
 	    "$ROOT_DIR/install/docker.sh"
-            ;;
+            
+	    echo 
+	    log_info "Running general applications setup..."
+	    "$ROOT_DIR/install/general-tools.sh"
+	    ;;
     esac
 
     case "$PROFILE" in 
