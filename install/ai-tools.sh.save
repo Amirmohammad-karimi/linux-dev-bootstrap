@@ -28,8 +28,6 @@ LOCAL_CONFIG="$ROOT_DIR/config/local.env"
 ENABLE_CHATGPT="no"
 ENABLE_ANTIGRAVITY_CLI="no"
 ENABLE_ANTIGRAVITY_DESKTOP="no"
-ENABLE_FREEBUFF_CLI="no"
-ENABLE_FREEBUFF_DESKTOP="no"
 ENABLE_OLLAMA="no"
 OLLAMA_MODEL=""
 
@@ -442,21 +440,8 @@ installed_freebuff_cli_version() {
         return 1
     fi
 
-    local version
-
-    version="$(
-        npm list -g freebuff \
-            --depth=0 \
-            --json \
-            2>/dev/null |
-        jq -r '.dependencies.freebuff.version // empty'
-    )"
-
-    if [[ -n "$version" ]]; then
-        printf '%s\n' "$version"
-    else
-        printf '%s\n' "installed"
-    fi
+    freebuff --version 2>/dev/null |
+        head -n1
 }
 
 install_freebuff_cli() {
@@ -477,91 +462,6 @@ install_freebuff_cli() {
     fi
 
     log_ok "Freebuff CLI installed ($(installed_freebuff_cli_version))"
-}
-
-
-# ---------------------------------------------------------------------------
-# Freebuff Desktop
-# ---------------------------------------------------------------------------
-
-FREEBUFF_DESKTOP_ROOT="$HOME/.local/opt/freebuff"
-FREEBUFF_DESKTOP_APPIMAGE="$FREEBUFF_DESKTOP_ROOT/Freebuff.AppImage"
-
-freebuff_desktop_installed() {
-    [[ -x "$FREEBUFF_DESKTOP_APPIMAGE" ]]
-}
-
-freebuff_desktop_download_url() {
-    case "$(uname -m)" in
-        x86_64)
-            printf '%s\n' \
-                "https://freebuff.com/api/desktop/download/linux"
-            ;;
-
-        aarch64|arm64)
-            printf '%s\n' \
-                "https://freebuff.com/api/desktop/download/linux-arm64"
-            ;;
-
-        *)
-            die "Unsupported Freebuff architecture: $(uname -m)"
-            ;;
-    esac
-}
-
-install_freebuff_desktop() {
-
-    if ! ldconfig -p 2>/dev/null | grep -q 'libfuse.so.2'; then
-        log_info "Installing FUSE 2 compatibility library..."
-
-        apt_install libfuse2t64
-
-        log_ok "FUSE 2 compatibility library installed."
-    fi
-    
-    if freebuff_desktop_installed; then
-        log_ok "Freebuff Desktop already installed"
-        return 0
-    fi
-
-    local url
-    url="$(freebuff_desktop_download_url)"
-
-    local temp_dir
-    temp_dir="$(mktemp -d)"
-
-    local appimage
-    appimage="$temp_dir/Freebuff.AppImage"
-
-    log_info "Downloading Freebuff Desktop..."
-
-    curl \
-        --proto '=https' \
-        --tlsv1.2 \
-        --fail \
-        --location \
-        --retry 3 \
-        "$url" \
-        -o "$appimage"
-
-    if [[ ! -s "$appimage" ]]; then
-        rm -rf "$temp_dir"
-        die "Downloaded Freebuff AppImage is empty."
-    fi
-
-    chmod +x "$appimage"
-
-    mkdir -p "$FREEBUFF_DESKTOP_ROOT"
-
-    mv "$appimage" "$FREEBUFF_DESKTOP_APPIMAGE"
-
-    rm -rf "$temp_dir"
-
-    if ! freebuff_desktop_installed; then
-        die "Freebuff Desktop installation verification failed."
-    fi
-
-    log_ok "Freebuff Desktop installed."
 }
 
 # ---------------------------------------------------------------------------
@@ -902,26 +802,6 @@ verify_ai_tools() {
         printf '  Antigravity desktop: disabled by local.env\n'
     fi
 
-    if [[ "${ENABLE_FREEBUFF_CLI:-no}" == "yes" ]]; then
-        if freebuff_cli_installed; then
-            echo "  Freebuff CLI:        $(installed_freebuff_cli_version)"
-        else
-            echo "  Freebuff CLI:        not installed"
-        fi
-    else
-        echo "  Freebuff CLI:        disabled"
-    fi
-
-    if [[ "${ENABLE_FREEBUFF_DESKTOP:-no}" == "yes" ]]; then
-        if freebuff_desktop_installed; then
-            echo "  Freebuff Desktop:    installed"
-        else
-            echo "  Freebuff Desktop:    not installed"
-        fi
-    else
-        echo "  Freebuff Desktop:    disabled"
-    fi
-
     if [[ "$ENABLE_OLLAMA" == "yes" ]]; then
         ollama_version="$(installed_ollama_version || true)"
 
@@ -988,73 +868,20 @@ main() {
     esac
 
 
-case "${ENABLE_ANTIGRAVITY_DESKTOP,,}" in
-    yes|true|1)
-        ENABLE_ANTIGRAVITY_DESKTOP="yes"
-
-        install_antigravity_desktop
-
-        ANTIGRAVITY_MANAGER="$HOME/.local/opt/antigravity/current/resources/bin/language_server"
-
-        if command -v fuser >/dev/null 2>&1 &&
-           fuser "$ANTIGRAVITY_MANAGER" >/dev/null 2>&1
-        then
-            log_error "Antigravity is currently running."
-            log_error "Close Antigravity Desktop and rerun the AI setup."
-            exit 1
-        fi
-
-        "$ANTIGRAVITY_PATCHER_SCRIPT" manager
-        ;;
-
-    no|false|0|"")
-        ENABLE_ANTIGRAVITY_DESKTOP="no"
-        log_info "Antigravity desktop disabled by config/local.env"
-        ;;
-
-    *)
-        die "Invalid ENABLE_ANTIGRAVITY_DESKTOP value: $ENABLE_ANTIGRAVITY_DESKTOP. Use yes or no."
-        ;;
-esac
-
-    # ---------------------------------------------------------------------------
-    # Freebuff CLI
-    # ---------------------------------------------------------------------------
-
-    case "${ENABLE_FREEBUFF_CLI,,}" in
+    case "${ENABLE_ANTIGRAVITY_DESKTOP,,}" in
         yes|true|1)
-            ENABLE_FREEBUFF_CLI="yes"
-            install_freebuff_cli
+            ENABLE_ANTIGRAVITY_DESKTOP="yes"
+            install_antigravity_desktop
+            "$ANTIGRAVITY_PATCHER_SCRIPT" manager
             ;;
 
         no|false|0|"")
-            ENABLE_FREEBUFF_CLI="no"
-            log_info "Freebuff CLI disabled by config/local.env"
+            ENABLE_ANTIGRAVITY_DESKTOP="no"
+            log_info "Antigravity desktop disabled by config/local.env"
             ;;
 
         *)
-            die "Invalid ENABLE_FREEBUFF_CLI value: $ENABLE_FREEBUFF_CLI. Use yes or no."
-            ;;
-    esac
-
-
-    # ---------------------------------------------------------------------------
-    # Freebuff Desktop
-    # ---------------------------------------------------------------------------
-
-    case "${ENABLE_FREEBUFF_DESKTOP,,}" in
-        yes|true|1)
-            ENABLE_FREEBUFF_DESKTOP="yes"
-            install_freebuff_desktop
-            ;;
-
-        no|false|0|"")
-            ENABLE_FREEBUFF_DESKTOP="no"
-            log_info "Freebuff Desktop disabled by config/local.env"
-            ;;
-
-        *)
-            die "Invalid ENABLE_FREEBUFF_DESKTOP value: $ENABLE_FREEBUFF_DESKTOP. Use yes or no."
+            die "Invalid ENABLE_ANTIGRAVITY_DESKTOP value: $ENABLE_ANTIGRAVITY_DESKTOP. Use yes or no."
             ;;
     esac
 

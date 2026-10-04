@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FREEBUFF="$HOME/.local/opt/freebuff/Freebuff.AppImage"
+
+if [[ ! -x "$FREEBUFF" ]]; then
+    echo "Freebuff Desktop is not installed." >&2
+    exit 127
+fi
+
+exec "$FREEBUFF" "$@"

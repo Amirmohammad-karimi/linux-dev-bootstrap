@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ANTIGRAVITY="$HOME/.local/bin/antigravity"
+
+if [[ ! -x "$ANTIGRAVITY" ]]; then
+    echo "Antigravity is not installed." >&2
+    exit 127
+fi
+
+nohup env LIBGL_ALWAYS_SOFTWARE=1 \
+    "$ANTIGRAVITY" \
+    --disable-gpu \
+    "$@" \
+    </dev/null \
+    >/dev/null \
+    2>&1 &
+
+exit 0

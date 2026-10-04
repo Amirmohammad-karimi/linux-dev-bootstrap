@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CUBEMX="$(command -v stm32cubemx || true)"
+
+if [[ -z "$CUBEMX" ]]; then
+    echo "STM32CubeMX is not installed." >&2
+    exit 127
+fi
+
+nohup "$CUBEMX" "$@" \
+    </dev/null \
+    >/dev/null \
+    2>&1 &
+
+exit 0

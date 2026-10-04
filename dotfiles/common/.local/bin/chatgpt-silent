@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CHATGPT="$(command -v chatgpt || true)"
+
+if [[ -z "$CHATGPT" ]]; then
+    echo "ChatGPT is not installed." >&2
+    exit 127
+fi
+
+nohup "$CHATGPT" "$@" \
+    </dev/null \
+    >/dev/null \
+    2>&1 &
+
+exit 0
