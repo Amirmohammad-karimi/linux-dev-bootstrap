@@ -6,6 +6,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 source "$ROOT_DIR/scripts/helpers.sh"
 source "$ROOT_DIR/config/versions.env"
+SCRIPT_DIR="$(
+    cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1
+    pwd
+)"
+
+REPO_ROOT="$(
+    cd "$SCRIPT_DIR/.." >/dev/null 2>&1
+    pwd
+)"
+
+ANTIGRAVITY_PATCHER_SCRIPT="$REPO_ROOT/scripts/antigravity-patcher.sh"
 
 
 # ---------------------------------------------------------------------------
@@ -15,6 +26,8 @@ source "$ROOT_DIR/config/versions.env"
 LOCAL_CONFIG="$ROOT_DIR/config/local.env"
 
 ENABLE_CHATGPT="no"
+ENABLE_ANTIGRAVITY_CLI="no"
+ENABLE_ANTIGRAVITY_DESKTOP="no"
 ENABLE_OLLAMA="no"
 OLLAMA_MODEL=""
 
@@ -190,6 +203,229 @@ verify_chatgpt() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# Antigravity CLI
+# ---------------------------------------------------------------------------
+
+antigravity_cli_installed() {
+    [[ -x "$HOME/.local/bin/agy" ]]
+}
+
+
+installed_antigravity_cli_version() {
+    if ! antigravity_cli_installed; then
+        return 1
+    fi
+
+    "$HOME/.local/bin/agy" --version 2>/dev/null |
+        head -n1
+}
+
+
+install_antigravity_cli() {
+    if antigravity_cli_installed; then
+        log_ok "Antigravity CLI already installed ($(installed_antigravity_cli_version))"
+        return 0
+    fi
+
+    log_info "Installing Antigravity CLI..."
+
+    curl -fsSL \
+        https://antigravity.google/cli/install.sh |
+        bash
+
+    if ! antigravity_cli_installed; then
+        die "Antigravity CLI installation verification failed."
+    fi
+
+    log_ok "Antigravity CLI installed ($(installed_antigravity_cli_version))"
+}
+
+# ---------------------------------------------------------------------------
+# Antigravity Desktop
+# ---------------------------------------------------------------------------
+
+ANTIGRAVITY_DESKTOP_ROOT="$HOME/.local/opt/antigravity"
+ANTIGRAVITY_DESKTOP_CURRENT="$ANTIGRAVITY_DESKTOP_ROOT/current"
+ANTIGRAVITY_DOWNLOAD_PAGE="https://www.antigravity.google/download?os=linux"
+
+
+antigravity_desktop_binary() {
+    local candidate
+
+    for candidate in \
+        "$ANTIGRAVITY_DESKTOP_CURRENT/antigravity" \
+        "$ANTIGRAVITY_DESKTOP_CURRENT/Antigravity"
+    do
+        if [[ -x "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+
+antigravity_desktop_installed() {
+    antigravity_desktop_binary >/dev/null 2>&1
+}
+
+
+installed_antigravity_desktop_version() {
+    if ! antigravity_desktop_installed; then
+        return 1
+    fi
+
+    if [[ -L "$ANTIGRAVITY_DESKTOP_CURRENT" ]]; then
+        basename "$(readlink -f "$ANTIGRAVITY_DESKTOP_CURRENT")"
+        return 0
+    fi
+
+    local binary
+    binary="$(antigravity_desktop_binary)"
+
+    "$binary" --version 2>/dev/null |
+        head -n1
+}
+
+
+resolve_antigravity_download() {
+    local platform
+
+    case "$(uname -m)" in
+        x86_64)
+            platform="linux-x64"
+            ;;
+
+        aarch64|arm64)
+            platform="linux-arm"
+            ;;
+
+        *)
+            die "Unsupported Antigravity architecture: $(uname -m)"
+            ;;
+    esac
+
+    local page
+    page="$(curl -fsSL "$ANTIGRAVITY_DOWNLOAD_PAGE")"
+
+    local url
+
+    url="$(
+        printf '%s' "$page" |
+        grep -oE \
+            "https://storage\.googleapis\.com/antigravity-public/antigravity-hub/[^\"']+/${platform}/Antigravity\.tar\.gz" |
+        head -n1
+    )"
+
+    if [[ -z "$url" ]]; then
+        die "Could not resolve official Antigravity Linux download URL."
+    fi
+
+    printf '%s\n' "$url"
+}
+
+
+install_antigravity_desktop() {
+    if antigravity_desktop_installed; then
+        log_ok "Antigravity desktop already installed ($(installed_antigravity_desktop_version))"
+        return 0
+    fi
+
+    log_info "Resolving latest official Antigravity desktop release..."
+
+    local url
+    url="$(resolve_antigravity_download)"
+
+    local release_id
+    release_id="$(
+        printf '%s\n' "$url" |
+        sed -E 's#^.*/antigravity-hub/([^/]+)/.*$#\1#'
+    )"
+
+    local version
+    version="${release_id%%-*}"
+
+    log_info "Antigravity desktop version: $version"
+
+    local temp_dir
+    temp_dir="$(mktemp -d)"
+
+    local archive
+    archive="$temp_dir/Antigravity.tar.gz"
+
+    log_info "Downloading Antigravity desktop..."
+
+    curl \
+        --proto '=https' \
+        --tlsv1.2 \
+        --fail \
+        --location \
+        --retry 3 \
+        "$url" \
+        -o "$archive"
+
+    if ! tar -tzf "$archive" >/dev/null 2>&1; then
+        rm -rf "$temp_dir"
+        die "Downloaded Antigravity archive is invalid."
+    fi
+
+    log_ok "Antigravity archive validated."
+
+    local extract_dir
+    extract_dir="$temp_dir/extracted"
+
+    mkdir -p "$extract_dir"
+
+    tar -xzf "$archive" \
+        -C "$extract_dir"
+
+    local binary
+    binary="$(
+        find "$extract_dir" \
+            -type f \
+            \( -name antigravity -o -name Antigravity \) \
+            -perm -111 \
+            -print \
+            -quit
+    )"
+
+    if [[ -z "$binary" ]]; then
+        log_info "Extracted Antigravity files:"
+        find "$extract_dir" -maxdepth 3 -type f | head -50
+
+        rm -rf "$temp_dir"
+
+        die "Antigravity executable was not found in archive."
+    fi
+
+    local source_dir
+    source_dir="$(dirname "$binary")"
+
+    local version_dir
+    version_dir="$ANTIGRAVITY_DESKTOP_ROOT/$version"
+
+    ensure_directory "$ANTIGRAVITY_DESKTOP_ROOT"
+
+    rm -rf "$version_dir"
+
+    mv "$source_dir" "$version_dir"
+
+    ln -sfn \
+        "$version_dir" \
+        "$ANTIGRAVITY_DESKTOP_CURRENT"
+
+    rm -rf "$temp_dir"
+
+    if ! antigravity_desktop_installed; then
+        die "Antigravity desktop installation verification failed."
+    fi
+
+    log_ok "Antigravity desktop $version installed."
+
+    $ANTIGRAVITY_PATCHER_SCRIPT manager   
+}
 
 # ---------------------------------------------------------------------------
 # Ollama helpers
@@ -506,6 +742,29 @@ verify_ai_tools() {
         printf '  ChatGPT:  disabled by config/local.env\n'
     fi
 
+    if [[ "$ENABLE_ANTIGRAVITY_CLI" == "yes" ]]; then
+        if antigravity_cli_installed; then
+            printf '  Antigravity CLI:     %s\n' \
+                "$(installed_antigravity_cli_version)"
+        else
+            printf '  Antigravity CLI:     not installed\n'
+        fi
+    else
+        printf '  Antigravity CLI:     disabled by local.env\n'
+    fi
+
+
+    if [[ "$ENABLE_ANTIGRAVITY_DESKTOP" == "yes" ]]; then
+        if antigravity_desktop_installed; then
+            printf '  Antigravity desktop: %s\n' \
+                "$(installed_antigravity_desktop_version)"
+        else
+            printf '  Antigravity desktop: not installed\n'
+        fi
+    else
+        printf '  Antigravity desktop: disabled by local.env\n'
+    fi
+
     if [[ "$ENABLE_OLLAMA" == "yes" ]]; then
         ollama_version="$(installed_ollama_version || true)"
 
@@ -551,6 +810,41 @@ main() {
 
         *)
             die "Invalid ENABLE_CHATGPT value: $ENABLE_CHATGPT. Use yes or no."
+            ;;
+    esac
+
+    case "${ENABLE_ANTIGRAVITY_CLI,,}" in
+        yes|true|1)
+            ENABLE_ANTIGRAVITY_CLI="yes"
+            install_antigravity_cli
+            #"$ANTIGRAVITY_PATCHER_SCRIPT" cli
+            ;;
+
+        no|false|0|"")
+            ENABLE_ANTIGRAVITY_CLI="no"
+            log_info "Antigravity CLI disabled by config/local.env"
+            ;;
+
+        *)
+            die "Invalid ENABLE_ANTIGRAVITY_CLI value: $ENABLE_ANTIGRAVITY_CLI. Use yes or no."
+            ;;
+    esac
+
+
+    case "${ENABLE_ANTIGRAVITY_DESKTOP,,}" in
+        yes|true|1)
+            ENABLE_ANTIGRAVITY_DESKTOP="yes"
+            install_antigravity_desktop
+            "$ANTIGRAVITY_PATCHER_SCRIPT" manager
+            ;;
+
+        no|false|0|"")
+            ENABLE_ANTIGRAVITY_DESKTOP="no"
+            log_info "Antigravity desktop disabled by config/local.env"
+            ;;
+
+        *)
+            die "Invalid ENABLE_ANTIGRAVITY_DESKTOP value: $ENABLE_ANTIGRAVITY_DESKTOP. Use yes or no."
             ;;
     esac
 

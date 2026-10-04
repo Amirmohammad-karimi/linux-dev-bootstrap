@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ANTIGRAVITY="$HOME/.local/opt/antigravity/current/antigravity"
+
+if [[ ! -x "$ANTIGRAVITY" ]]; then
+    echo "Antigravity desktop is not installed." >&2
+    exit 127
+fi
+
+exec "$ANTIGRAVITY" "$@"
