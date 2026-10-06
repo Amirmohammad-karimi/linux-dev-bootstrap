@@ -8,6 +8,6 @@ if [[ ! -x "$ZCODE" ]]; then
     exit 127
 fi
 
-nohup "$ZCODE" "$@"     </dev/null     >/dev/null     2>&1 &
+nohup env LIBGL_ALWAYS_SOFTWARE=1     "$ZCODE"     --disable-gpu     "$@"     </dev/null     >/dev/null     2>&1 &
 
 exit 0
