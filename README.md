@@ -259,6 +259,7 @@ Currently supported tools include:
 | Antigravity | Desktop | Yes |
 | Freebuff | CLI | Yes |
 | Freebuff | Desktop | Yes |
+| ZCode | Desktop / coding agent | Yes |
 | Ollama | Local model runtime | Yes |
 
 Example current environment:
@@ -270,6 +271,7 @@ Antigravity CLI:      1.1.0
 Antigravity Desktop:  2.19.1
 Freebuff CLI:         0.2.13
 Freebuff Desktop:     installed
+ZCode:                optional
 Ollama:               optional
 ```
 
@@ -386,6 +388,41 @@ libfuse2t64
 ```
 
 The bootstrap installs it automatically when needed.
+
+---
+
+### ZCode
+
+ZCode is available as an optional Linux desktop coding agent.
+
+The bootstrap resolves the current official Linux AppImage from ZCode's install page and installs it at:
+
+```text
+~/.local/opt/zcode/ZCode.AppImage
+```
+
+Enable it per machine with:
+
+```bash
+ENABLE_ZCODE="yes"
+ENABLE_ZCODE_FUSE_COMPAT="yes"
+```
+
+Launch normally with:
+
+```bash
+zcode
+```
+
+or detached from the terminal:
+
+```bash
+zcode-silent
+```
+
+The Linux AppImage may require FUSE compatibility support. On Ubuntu 24.04 the bootstrap can install `libfuse2t64` when necessary.
+
+ZCode does not automatically inherit `HTTP_PROXY` when its proxy field is blank. On proxy-restricted networks, configure the proxy inside **Settings → General** and restart ZCode.
 
 ---
 
@@ -668,6 +705,7 @@ Examples:
 chatgpt-silent
 antigravity-silent
 freebuff-desktop-silent
+zcode-silent
 stm32cubemx-silent
 ```
 
@@ -782,6 +820,7 @@ WSLg is used for Linux GUI applications including:
 - ChatGPT
 - Antigravity
 - Freebuff
+- ZCode
 
 ---
 
@@ -813,6 +852,7 @@ OpenCode
 ChatGPT
 Antigravity
 Freebuff
+ZCode
 Ollama
 managed dotfiles
 WSL / WSLg
