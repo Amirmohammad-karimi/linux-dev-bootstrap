@@ -78,6 +78,44 @@ architecture() {
 # sudo
 # ---------------------------------------------------------------------------
 
+SUDO_KEEPALIVE_PID=""
+
+start_sudo_session() {
+    if [[ "$EUID" -eq 0 ]]; then
+        return 0
+    fi
+
+    if ! command_exists sudo; then
+        die "sudo is required but is not installed."
+    fi
+
+    log_info "Authenticating sudo for bootstrap..."
+
+    sudo -v ||
+        die "sudo authentication failed."
+
+    # Refresh the sudo timestamp while the bootstrap is running so later
+    # install scripts do not repeatedly prompt for the user's password.
+    (
+        while true; do
+            sleep 60
+            sudo -n -v >/dev/null 2>&1 || exit
+        done
+    ) &
+
+    SUDO_KEEPALIVE_PID="$!"
+
+    log_ok "sudo session active."
+}
+
+stop_sudo_session() {
+    if [[ -n "${SUDO_KEEPALIVE_PID:-}" ]]; then
+        kill "$SUDO_KEEPALIVE_PID" >/dev/null 2>&1 || true
+        wait "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+        SUDO_KEEPALIVE_PID=""
+    fi
+}
+
 ensure_sudo() {
     if [[ "$EUID" -eq 0 ]]; then
         return 0

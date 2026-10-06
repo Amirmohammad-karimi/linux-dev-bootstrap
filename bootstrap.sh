@@ -19,6 +19,9 @@ main() {
         die "This bootstrap currently supports Linux only."
     fi
 
+    start_sudo_session
+    trap stop_sudo_session EXIT
+
     print_system_info
 
     echo
