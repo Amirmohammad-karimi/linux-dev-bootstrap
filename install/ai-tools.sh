@@ -33,6 +33,8 @@ ENABLE_ANTIGRAVITY_DESKTOP="no"
 ENABLE_FREEBUFF_CLI="no"
 ENABLE_FREEBUFF_DESKTOP="no"
 ENABLE_FREEBUFF_FUSE_COMPAT="yes"
+ENABLE_ZCODE="no"
+ENABLE_ZCODE_FUSE_COMPAT="yes"
 ENABLE_OLLAMA="no"
 ENABLE_OLLAMA_ZSTD="yes"
 OLLAMA_MODEL=""
@@ -568,6 +570,143 @@ install_freebuff_desktop() {
     log_ok "Freebuff Desktop installed."
 }
 
+
+# ---------------------------------------------------------------------------
+# ZCode Desktop
+# ---------------------------------------------------------------------------
+
+ZCODE_ROOT="$HOME/.local/opt/zcode"
+ZCODE_APPIMAGE="$ZCODE_ROOT/ZCode.AppImage"
+ZCODE_VERSION_FILE="$ZCODE_ROOT/version"
+ZCODE_INSTALL_PAGE="https://zcode.z.ai/en/docs/install"
+
+zcode_installed() {
+    [[ -x "$ZCODE_APPIMAGE" ]]
+}
+
+installed_zcode_version() {
+    if [[ -f "$ZCODE_VERSION_FILE" ]]; then
+        cat "$ZCODE_VERSION_FILE"
+    elif zcode_installed; then
+        printf '%s\n' "installed"
+    else
+        return 1
+    fi
+}
+
+zcode_platform() {
+    case "$(uname -m)" in
+        x86_64)
+            printf '%s\n' "linux-x64"
+            ;;
+        aarch64|arm64)
+            printf '%s\n' "linux-arm64"
+            ;;
+        *)
+            die "Unsupported ZCode architecture: $(uname -m)"
+            ;;
+    esac
+}
+
+resolve_zcode_download() {
+    local platform
+    platform="$(zcode_platform)"
+
+    local page
+    page="$(curl -fsSL "$ZCODE_INSTALL_PAGE")"
+
+    local url
+    url="$(
+        printf '%s' "$page" |
+        grep -oE "https://cdn-zcode\.z\.ai/zcode/electron/releases/[0-9]+\.[0-9]+\.[0-9]+/${platform}/ZCode-[0-9]+\.[0-9]+\.[0-9]+-${platform}\.AppImage" |
+        head -n1
+    )"
+
+    [[ -n "$url" ]] ||
+        die "Could not resolve the official ZCode AppImage URL for $platform from $ZCODE_INSTALL_PAGE"
+
+    printf '%s\n' "$url"
+}
+
+zcode_version_from_url() {
+    local url="$1"
+
+    printf '%s\n' "$url" |
+        sed -E 's#^.*/releases/([0-9]+\.[0-9]+\.[0-9]+)/.*#\1#'
+}
+
+ensure_zcode_fuse() {
+    if ldconfig -p 2>/dev/null | grep -q 'libfuse.so.2'; then
+        return 0
+    fi
+
+    if feature_enabled ENABLE_ZCODE_FUSE_COMPAT yes; then
+        log_info "Installing FUSE 2 compatibility library for ZCode..."
+        apt_install libfuse2t64
+        log_ok "ZCode FUSE 2 compatibility library installed."
+        return 0
+    fi
+
+    die "ZCode AppImage may require libfuse.so.2. Set ENABLE_ZCODE_FUSE_COMPAT=yes or install a compatible FUSE 2 library manually."
+}
+
+install_zcode() {
+    ensure_apt_dependency ENABLE_CURL curl "ZCode" yes
+    require_command curl
+    ensure_zcode_fuse
+
+    log_info "Resolving latest official ZCode Linux release..."
+
+    local url
+    local version
+    local installed
+
+    url="$(resolve_zcode_download)"
+    version="$(zcode_version_from_url "$url")"
+    installed="$(installed_zcode_version || true)"
+
+    if zcode_installed && [[ "$installed" == "$version" ]]; then
+        log_ok "ZCode $version already installed"
+        return 0
+    fi
+
+    if zcode_installed; then
+        log_info "Updating ZCode ${installed:-unknown} -> $version"
+    else
+        log_info "Installing ZCode $version..."
+    fi
+
+    local temp_dir
+    local appimage
+
+    temp_dir="$(mktemp -d)"
+    appimage="$temp_dir/ZCode.AppImage"
+
+    curl \
+        --proto '=https' \
+        --tlsv1.2 \
+        --fail \
+        --location \
+        --retry 3 \
+        "$url" \
+        -o "$appimage"
+
+    if [[ ! -s "$appimage" ]]; then
+        rm -rf "$temp_dir"
+        die "Downloaded ZCode AppImage is empty."
+    fi
+
+    chmod +x "$appimage"
+    ensure_directory "$ZCODE_ROOT"
+
+    mv "$appimage" "$ZCODE_APPIMAGE"
+    printf '%s\n' "$version" > "$ZCODE_VERSION_FILE"
+
+    rm -rf "$temp_dir"
+
+    zcode_installed || die "ZCode installation verification failed."
+    log_ok "ZCode $version installed."
+}
 # ---------------------------------------------------------------------------
 # Ollama helpers
 # ---------------------------------------------------------------------------
@@ -935,6 +1074,16 @@ verify_ai_tools() {
         echo "  Freebuff Desktop:    disabled"
     fi
 
+    if feature_enabled ENABLE_ZCODE no; then
+        if zcode_installed; then
+            printf '  ZCode:               %s\n' "$(installed_zcode_version)"
+        else
+            printf '  ZCode:               not installed\n'
+        fi
+    else
+        printf '  ZCode:               disabled by config/local.env\n'
+    fi
+
     if [[ "$ENABLE_OLLAMA" == "yes" ]]; then
         ollama_version="$(installed_ollama_version || true)"
 
@@ -1079,6 +1228,12 @@ esac
             die "Invalid ENABLE_FREEBUFF_DESKTOP value: $ENABLE_FREEBUFF_DESKTOP. Use yes or no."
             ;;
     esac
+
+    if feature_enabled ENABLE_ZCODE no; then
+        install_zcode
+    else
+        log_feature_disabled "ZCode" "ENABLE_ZCODE"
+    fi
 
     case "${ENABLE_OLLAMA,,}" in
         yes|true|1)
