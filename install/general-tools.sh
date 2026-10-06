@@ -26,10 +26,7 @@ ENABLE_GOOGLE_CHROME="${ENABLE_GOOGLE_CHROME:-no}"
 # Load machine-local configuration
 # ---------------------------------------------------------------------------
 
-if [[ -f "$LOCAL_ENV" ]]; then
-    # shellcheck disable=SC1090
-    source "$LOCAL_ENV"
-fi
+load_local_env "$LOCAL_ENV"
 
 
 # ---------------------------------------------------------------------------
@@ -60,10 +57,11 @@ install_google_chrome() {
 
     log_info "Installing Google Chrome..."
 
-    apt_install \
-        ca-certificates \
-        curl \
-        gnupg
+    ensure_apt_dependency ENABLE_CA_CERTIFICATES ca-certificates "Google Chrome" yes
+    ensure_apt_dependency ENABLE_CURL curl "Google Chrome" yes
+    ensure_apt_dependency ENABLE_GNUPG gnupg "Google Chrome" yes
+    require_command curl
+    require_command gpg
 
     sudo install \
         -m 0755 \
@@ -112,6 +110,10 @@ install_google_chrome() {
 # ---------------------------------------------------------------------------
 
 main() {
+    if ! feature_enabled ENABLE_GENERAL_TOOLS yes; then
+        log_feature_disabled "General applications" "ENABLE_GENERAL_TOOLS"
+        return 0
+    fi
 
     case "${ENABLE_GOOGLE_CHROME,,}" in
         yes|true|1)

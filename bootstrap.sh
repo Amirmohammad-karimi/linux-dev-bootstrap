@@ -6,6 +6,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$ROOT_DIR/scripts/helpers.sh"
 
+LOCAL_CONFIG="$ROOT_DIR/config/local.env"
+load_local_env "$LOCAL_CONFIG"
+
 PROFILE="${1:-full}"
 
 main() {
@@ -19,8 +22,12 @@ main() {
         die "This bootstrap currently supports Linux only."
     fi
 
-    start_sudo_session
-    trap stop_sudo_session EXIT
+    if feature_enabled ENABLE_SUDO_KEEPALIVE yes; then
+        start_sudo_session
+        trap stop_sudo_session EXIT
+    else
+        log_feature_disabled "sudo keepalive" "ENABLE_SUDO_KEEPALIVE"
+    fi
 
     print_system_info
 
@@ -41,10 +48,14 @@ main() {
     "$ROOT_DIR/install/base.sh"
 
     echo
-    log_info "Installing managed dotfiles..."
-    "$ROOT_DIR/scripts/setup-dotfiles.sh"
+    if feature_enabled ENABLE_MANAGED_DOTFILES yes; then
+        log_info "Installing managed dotfiles..."
+        "$ROOT_DIR/scripts/setup-dotfiles.sh"
+    else
+        log_feature_disabled "Managed dotfiles" "ENABLE_MANAGED_DOTFILES"
+    fi
 
-    # Make newly managed launchers available to this bootstrap process.
+    # Make user-local launchers available to this bootstrap process.
     export PATH="$HOME/.local/bin:$PATH"
     hash -r
 

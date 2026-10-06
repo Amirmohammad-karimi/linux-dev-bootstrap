@@ -1,16 +1,14 @@
+# FEATURE_FLAG|VS_CODE_EXTENSION
 # Python
-ms-python.python
-ms-python.debugpy
-ms-python.vscode-pylance
-ms-python.vscode-python-envs
-
+ENABLE_VSCODE_PYTHON|ms-python.python
+ENABLE_VSCODE_DEBUGPY|ms-python.debugpy
+ENABLE_VSCODE_PYLANCE|ms-python.vscode-pylance
+ENABLE_VSCODE_PYTHON_ENVS|ms-python.vscode-python-envs
 # C / C++
-ms-vscode.cmake-tools
-ms-vscode.cpp-devtools
-
+ENABLE_VSCODE_CMAKE_TOOLS|ms-vscode.cmake-tools
+ENABLE_VSCODE_CPP_DEVTOOLS|ms-vscode.cpp-devtools
 # AI
-openai.chatgpt
-
+ENABLE_VSCODE_CHATGPT|openai.chatgpt
 # Embedded utilities
-eclipse-cdt.serial-monitor
-eclipse-cdt.memory-inspector
+ENABLE_VSCODE_SERIAL_MONITOR|eclipse-cdt.serial-monitor
+ENABLE_VSCODE_MEMORY_INSPECTOR|eclipse-cdt.memory-inspector

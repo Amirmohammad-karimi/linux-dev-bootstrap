@@ -524,6 +524,23 @@ OLLAMA_MODEL=""
 
 Different machines can therefore use the same repository while enabling different applications.
 
+### Per-component feature switches
+
+`config/local.env.example` is the source of truth for installation switches.
+Every `ENABLE_*` option uses an explicit `"yes"` or `"no"` value.
+
+Switches cover individual base APT packages, Python components, nvm/Node.js,
+Docker components, Chrome, VS Code extensions, STM32 bundles and USB
+dependencies, STM32CubeMX, and the supported AI applications.
+
+A value of `"no"` means the bootstrap does not explicitly install or manage
+that component. It does not uninstall software already present, and an APT
+package may still be pulled when it is an unavoidable dependency of another
+enabled package.
+
+Existing `config/local.env` files remain compatible: options that are absent
+use the bootstrap defaults.
+
 ---
 
 ## 4. Run the Bootstrap

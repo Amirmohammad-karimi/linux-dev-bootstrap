@@ -8,6 +8,9 @@ source "$ROOT_DIR/scripts/helpers.sh"
 source "$ROOT_DIR/config/versions.env"
 source "$ROOT_DIR/config/cubemx.env"
 
+LOCAL_CONFIG="$ROOT_DIR/config/local.env"
+load_local_env "$LOCAL_CONFIG"
+
 CUBEMX_ROOT="$HOME/.local/opt/stm32cubemx"
 CUBEMX_CURRENT="$CUBEMX_ROOT/current"
 
@@ -259,6 +262,8 @@ install_cubemx() {
 
     log_info "Extracting STM32CubeMX installer..."
 
+    ensure_apt_dependency ENABLE_UNZIP unzip "STM32CubeMX" yes
+    require_command unzip
     unzip -q "$zip" -d "$temp_dir"
 
     local installer_version
@@ -365,6 +370,10 @@ verify_cubemx() {
 
 
 main() {
+    if ! feature_enabled ENABLE_STM32CUBEMX yes; then
+        log_feature_disabled "STM32CubeMX" "ENABLE_STM32CUBEMX"
+        return 0
+    fi
     install_cubemx
     configure_cubemx
     verify_cubemx

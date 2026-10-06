@@ -1,7 +1,8 @@
-cmake@4.3.1+st.1
-gnu-tools-for-stm32@14.3.1+st.2
-ninja@1.13.2+st.1
-programmer@2.23.0
-st-arm-clangd@21.1.0+st.2
-stlink-gdbserver@7.14.0+st.2
-stlink-udev-rules@1.0.3-3+st.3
+# FEATURE_FLAG|STM32_BUNDLE
+ENABLE_STM32_CMAKE|cmake@4.3.1+st.1
+ENABLE_STM32_GCC|gnu-tools-for-stm32@14.3.1+st.2
+ENABLE_STM32_NINJA|ninja@1.13.2+st.1
+ENABLE_STM32_PROGRAMMER|programmer@2.23.0
+ENABLE_STM32_CLANGD|st-arm-clangd@21.1.0+st.2
+ENABLE_STLINK_GDBSERVER|stlink-gdbserver@7.14.0+st.2
+ENABLE_STLINK_UDEV_RULES|stlink-udev-rules@1.0.3-3+st.3

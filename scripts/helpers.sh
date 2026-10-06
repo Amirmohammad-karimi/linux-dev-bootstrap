@@ -44,6 +44,60 @@ require_command() {
 }
 
 # ---------------------------------------------------------------------------
+# Machine-local configuration / feature flags
+# ---------------------------------------------------------------------------
+
+load_local_env() {
+    local file="$1"
+
+    if [[ -f "$file" ]]; then
+        # shellcheck source=/dev/null
+        source "$file"
+    fi
+}
+
+feature_enabled() {
+    local variable="$1"
+    local default="${2:-no}"
+    local value="${!variable:-$default}"
+
+    case "${value,,}" in
+        yes) return 0 ;;
+        no) return 1 ;;
+        *) die "Invalid value for $variable: $value. Use yes or no." ;;
+    esac
+}
+
+log_feature_disabled() {
+    local name="$1"
+    local variable="${2:-}"
+
+    if [[ -n "$variable" ]]; then
+        log_info "$name disabled ($variable=no)"
+    else
+        log_info "$name disabled by config/local.env"
+    fi
+}
+
+ensure_apt_dependency() {
+    local variable="$1"
+    local package="$2"
+    local consumer="$3"
+    local default="${4:-yes}"
+
+    if package_installed "$package"; then
+        return 0
+    fi
+
+    if feature_enabled "$variable" "$default"; then
+        apt_install "$package"
+        return 0
+    fi
+
+    die "$consumer requires package '$package'. Set $variable=yes or install the package manually."
+}
+
+# ---------------------------------------------------------------------------
 # System detection
 # ---------------------------------------------------------------------------
 

@@ -1,195 +1,82 @@
 #!/usr/bin/env bash
-
 set -u
-
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
 source "$ROOT_DIR/scripts/helpers.sh"
-
 LOCAL_CONFIG="$ROOT_DIR/config/local.env"
-
-ENABLE_CHATGPT="no"
-ENABLE_OLLAMA="no"
-OLLAMA_MODEL=""
-
-if [[ -f "$LOCAL_CONFIG" ]]; then
-    # shellcheck source=/dev/null
-    source "$LOCAL_CONFIG"
-fi
-
+load_local_env "$LOCAL_CONFIG"
 ERRORS=0
 WARNINGS=0
+pass(){ printf '[OK]   %s\n' "$1"; }
+warn(){ printf '[WARN] %s\n' "$1"; WARNINGS=$((WARNINGS+1)); }
+fail(){ printf '[FAIL] %s\n' "$1"; ERRORS=$((ERRORS+1)); }
+check_command(){ local command="$1"; local name="${2:-$1}"; command -v "$command" >/dev/null 2>&1 && pass "$name: $(command -v "$command")" || fail "$name not found"; }
+check_enabled_command(){ local feature="$1" default="$2" command="$3" name="${4:-$3}"; feature_enabled "$feature" "$default" && check_command "$command" "$name" || pass "$name disabled ($feature=no)"; }
 
-pass() {
-    printf '[OK]   %s\n' "$1"
-}
-
-warn() {
-    printf '[WARN] %s\n' "$1"
-    WARNINGS=$((WARNINGS + 1))
-}
-
-fail() {
-    printf '[FAIL] %s\n' "$1"
-    ERRORS=$((ERRORS + 1))
-}
-
-check_command() {
-    local command="$1"
-    local name="${2:-$1}"
-
-    if command -v "$command" >/dev/null 2>&1; then
-        pass "$name: $(command -v "$command")"
-    else
-        fail "$name not found"
-    fi
-}
-
-echo
-echo "========================================"
-echo "Linux Bootstrap Health Check"
-echo "========================================"
-echo
-
+echo; echo "========================================"; echo "Linux Bootstrap Health Check"; echo "========================================"; echo
 print_system_info
+echo; echo "[INFO] Base / development tools"
+check_enabled_command ENABLE_GIT yes git Git
+check_enabled_command ENABLE_CURL yes curl curl
+if feature_enabled ENABLE_PYTHON_TOOLCHAIN yes; then
+    check_enabled_command ENABLE_PYTHON3 yes python3 Python
+    check_enabled_command ENABLE_PIPX yes pipx pipx
+    check_enabled_command ENABLE_UV yes uv uv
+else pass "Python toolchain disabled"; fi
+if feature_enabled ENABLE_NODE_TOOLCHAIN yes; then
+    check_enabled_command ENABLE_NODEJS yes node Node.js
+    feature_enabled ENABLE_NODEJS yes && check_command npm npm
+else pass "Node.js toolchain disabled"; fi
+feature_enabled ENABLE_VSCODE yes && check_command code "VS Code" || pass "VS Code configuration disabled"
 
-echo
-echo "[INFO] Core tools"
-
-check_command git
-check_command curl
-check_command python3
-check_command pipx
-check_command uv
-check_command node
-check_command npm
-check_command docker
-check_command code "VS Code"
-check_command opencode "OpenCode"
-
-echo
-echo "[INFO] Docker"
-
-if command -v docker >/dev/null 2>&1; then
-    if docker info >/dev/null 2>&1; then
-        pass "Docker daemon is running"
-    else
-        warn "Docker CLI exists but daemon is unavailable"
+echo; echo "[INFO] Docker"
+if feature_enabled ENABLE_DOCKER yes; then
+    feature_enabled ENABLE_DOCKER_CLI yes && check_command docker Docker
+    if command -v docker >/dev/null 2>&1; then
+        if docker info >/dev/null 2>&1; then pass "Docker daemon is running"
+        elif package_installed docker-ce && sudo -n docker info >/dev/null 2>&1; then pass "Docker daemon is running (current shell lacks Docker group access)"
+        elif feature_enabled ENABLE_DOCKER_ENGINE yes; then warn "Docker Engine enabled but daemon is unavailable"; fi
     fi
-fi
+else pass "Docker disabled"; fi
 
-echo
-echo "[INFO] STM32"
-
-check_command cube "STM32 cube CLI"
-
-GCC="$HOME/.local/share/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc"
-
-if [[ -x "$GCC" ]]; then
-    pass "GNU Arm GCC: $("$GCC" --version | head -n1)"
-else
-    warn "GNU Arm GCC bundle not found"
-fi
-
-if command -v stm32cubemx >/dev/null 2>&1; then
-    pass "STM32CubeMX launcher available"
-else
-    warn "STM32CubeMX launcher not found"
-fi
-
-if command -v lsusb >/dev/null 2>&1; then
-    if lsusb | grep -qiE '0483:374[0-9a-f]|0483:375[0-9a-f]'; then
-        pass "ST-LINK visible in Linux"
-    else
-        warn "No ST-LINK currently visible"
+echo; echo "[INFO] STM32"
+if feature_enabled ENABLE_STM32 yes; then
+    check_command cube "STM32 cube CLI"
+    if feature_enabled ENABLE_STM32_GCC yes; then
+        GCC="$HOME/.local/share/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc"
+        [[ -x "$GCC" ]] && pass "GNU Arm GCC: $("$GCC" --version | head -n1)" || warn "GNU Arm GCC enabled but bundle not found"
+    else pass "GNU Arm GCC disabled"; fi
+    if feature_enabled ENABLE_STM32CUBEMX yes; then command -v stm32cubemx >/dev/null 2>&1 && pass "STM32CubeMX launcher available" || warn "STM32CubeMX enabled but launcher not found"
+    else pass "STM32CubeMX disabled"; fi
+    if feature_enabled ENABLE_USBUTILS yes && command -v lsusb >/dev/null 2>&1; then
+        lsusb | grep -qiE '0483:374[0-9a-f]|0483:375[0-9a-f]' && pass "ST-LINK visible in Linux" || warn "No ST-LINK currently visible"
     fi
-fi
+else pass "STM32 development environment disabled"; fi
 
-echo
-echo "[INFO] AI tools"
-
-if command -v opencode >/dev/null 2>&1; then
-    pass "OpenCode: $(opencode --version 2>/dev/null)"
-else
-    fail "OpenCode not found"
-fi
-
-case "${ENABLE_CHATGPT,,}" in
-    yes|true|1)
-        if dpkg-query -W -f='${Status}' chatgpt 2>/dev/null |
-            grep -q 'install ok installed'; then
-
-            pass "ChatGPT: $(dpkg-query -W -f='${Version}' chatgpt)"
-        else
-            fail "ChatGPT enabled in local.env but not installed"
-        fi
-        ;;
-
-    *)
-        if dpkg-query -W -f='${Status}' chatgpt 2>/dev/null |
-            grep -q 'install ok installed'; then
-            pass "ChatGPT installed (not required by local.env)"
-        else
-            pass "ChatGPT disabled by local.env"
-        fi
-        ;;
-esac
-
-case "${ENABLE_OLLAMA,,}" in
-    yes|true|1)
+echo; echo "[INFO] AI tools"
+if feature_enabled ENABLE_AI_TOOLS yes; then
+    if feature_enabled ENABLE_OPENCODE yes; then command -v opencode >/dev/null 2>&1 && pass "OpenCode: $(opencode --version 2>/dev/null)" || fail "OpenCode enabled but not found"; else pass "OpenCode disabled"; fi
+    if feature_enabled ENABLE_CHATGPT no; then package_installed chatgpt && pass "ChatGPT: $(dpkg-query -W -f='${Version}' chatgpt)" || fail "ChatGPT enabled but not installed"; else pass "ChatGPT disabled"; fi
+    if feature_enabled ENABLE_ANTIGRAVITY_CLI no; then [[ -x "$HOME/.local/bin/agy" ]] && pass "Antigravity CLI available" || fail "Antigravity CLI enabled but not found"; else pass "Antigravity CLI disabled"; fi
+    if feature_enabled ENABLE_ANTIGRAVITY_DESKTOP no; then [[ -x "$HOME/.local/opt/antigravity/current/antigravity" || -x "$HOME/.local/opt/antigravity/current/Antigravity" ]] && pass "Antigravity Desktop available" || fail "Antigravity Desktop enabled but not found"; else pass "Antigravity Desktop disabled"; fi
+    if feature_enabled ENABLE_FREEBUFF_CLI no; then check_command freebuff "Freebuff CLI"; else pass "Freebuff CLI disabled"; fi
+    if feature_enabled ENABLE_FREEBUFF_DESKTOP no; then [[ -x "$HOME/.local/opt/freebuff/Freebuff.AppImage" ]] && pass "Freebuff Desktop available" || fail "Freebuff Desktop enabled but not found"; else pass "Freebuff Desktop disabled"; fi
+    if feature_enabled ENABLE_OLLAMA no; then
         if command -v ollama >/dev/null 2>&1; then
             pass "Ollama installed: $(ollama --version 2>/dev/null | head -n1)"
+            command -v curl >/dev/null 2>&1 && curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && pass "Ollama API running" || warn "Ollama enabled but API is inactive"
+        else fail "Ollama enabled but not installed"; fi
+    else pass "Ollama disabled"; fi
+else pass "AI tools disabled"; fi
 
-            if curl -fsS \
-                http://127.0.0.1:11434/api/tags \
-                >/dev/null 2>&1; then
+echo; echo "[INFO] Managed configuration"
+if feature_enabled ENABLE_MANAGED_DOTFILES yes; then
+    for file in "$HOME/.config/linux-bootstrap/shell.sh" "$HOME/.config/linux-bootstrap/gitconfig" "$HOME/.config/opencode/opencode.jsonc"; do
+        [[ -e "$file" ]] && pass "$file" || fail "$file missing"
+    done
+else pass "Managed dotfiles disabled"; fi
 
-                pass "Ollama API running"
-            else
-                warn "Ollama enabled but API is inactive"
-            fi
-        else
-            fail "Ollama enabled in local.env but not installed"
-        fi
-        ;;
-
-    *)
-        if command -v ollama >/dev/null 2>&1; then
-            pass "Ollama installed but disabled by local.env"
-        else
-            pass "Ollama disabled by local.env"
-        fi
-        ;;
-esac
-
-echo
-echo "[INFO] Managed configuration"
-
-for file in \
-    "$HOME/.config/linux-bootstrap/shell.sh" \
-    "$HOME/.config/linux-bootstrap/gitconfig" \
-    "$HOME/.config/opencode/opencode.jsonc"
-do
-    if [[ -e "$file" ]]; then
-        pass "$file"
-    else
-        fail "$file missing"
-    fi
-done
-
-echo
+echo; echo "========================================"
+[[ "$ERRORS" -eq 0 ]] && echo "[OK] Health check passed" || echo "[FAIL] Health check found $ERRORS error(s)"
+[[ "$WARNINGS" -gt 0 ]] && echo "[WARN] $WARNINGS warning(s)"
 echo "========================================"
-
-if [[ "$ERRORS" -eq 0 ]]; then
-    echo "[OK] Health check passed"
-else
-    echo "[FAIL] Health check found $ERRORS error(s)"
-fi
-
-if [[ "$WARNINGS" -gt 0 ]]; then
-    echo "[WARN] $WARNINGS warning(s)"
-fi
-
-echo "========================================"
-
 exit "$ERRORS"

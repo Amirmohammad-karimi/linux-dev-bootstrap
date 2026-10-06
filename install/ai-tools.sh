@@ -25,12 +25,16 @@ ANTIGRAVITY_PATCHER_SCRIPT="$REPO_ROOT/scripts/antigravity-patcher.sh"
 
 LOCAL_CONFIG="$ROOT_DIR/config/local.env"
 
+ENABLE_AI_TOOLS="yes"
+ENABLE_OPENCODE="yes"
 ENABLE_CHATGPT="no"
 ENABLE_ANTIGRAVITY_CLI="no"
 ENABLE_ANTIGRAVITY_DESKTOP="no"
 ENABLE_FREEBUFF_CLI="no"
 ENABLE_FREEBUFF_DESKTOP="no"
+ENABLE_FREEBUFF_FUSE_COMPAT="yes"
 ENABLE_OLLAMA="no"
+ENABLE_OLLAMA_ZSTD="yes"
 OLLAMA_MODEL=""
 
 if [[ -f "$LOCAL_CONFIG" ]]; then
@@ -510,11 +514,13 @@ freebuff_desktop_download_url() {
 install_freebuff_desktop() {
 
     if ! ldconfig -p 2>/dev/null | grep -q 'libfuse.so.2'; then
-        log_info "Installing FUSE 2 compatibility library..."
-
-        apt_install libfuse2t64
-
-        log_ok "FUSE 2 compatibility library installed."
+        if feature_enabled ENABLE_FREEBUFF_FUSE_COMPAT yes; then
+            log_info "Installing FUSE 2 compatibility library..."
+            apt_install libfuse2t64
+            log_ok "FUSE 2 compatibility library installed."
+        else
+            die "Freebuff Desktop requires libfuse.so.2. Set ENABLE_FREEBUFF_FUSE_COMPAT=yes or install a compatible FUSE 2 library manually."
+        fi
     fi
     
     if freebuff_desktop_installed; then
@@ -626,9 +632,12 @@ ensure_ollama_requirements() {
     if command_exists zstd; then
         return 0
     fi
-
-    log_info "Installing required Ollama dependency: zstd"
-    apt_install zstd
+    if feature_enabled ENABLE_OLLAMA_ZSTD yes; then
+        log_info "Installing required Ollama dependency: zstd"
+        apt_install zstd
+        return 0
+    fi
+    die "Ollama requires zstd. Set ENABLE_OLLAMA_ZSTD=yes or install zstd manually."
 }
 
 
@@ -861,11 +870,17 @@ verify_ai_tools() {
     local ollama_version=""
     local ollama_state="disabled"
 
-    opencode_version="$(installed_opencode_version || true)"
+    if feature_enabled ENABLE_OPENCODE yes; then
+        opencode_version="$(installed_opencode_version || true)"
+    fi
 
     log_info "AI development environment:"
 
-    printf '  OpenCode: %s\n' "${opencode_version:-not found}"
+    if feature_enabled ENABLE_OPENCODE yes; then
+        printf '  OpenCode: %s\n' "${opencode_version:-not found}"
+    else
+        printf '  OpenCode: disabled by config/local.env\n'
+    fi
 
     if [[ "$ENABLE_CHATGPT" == "yes" ]]; then
         if chatgpt_installed; then
@@ -950,7 +965,16 @@ verify_ai_tools() {
 # ---------------------------------------------------------------------------
 
 main() {
-    install_opencode
+    if ! feature_enabled ENABLE_AI_TOOLS yes; then
+        log_feature_disabled "AI tools" "ENABLE_AI_TOOLS"
+        return 0
+    fi
+
+    if feature_enabled ENABLE_OPENCODE yes; then
+        install_opencode
+    else
+        log_feature_disabled "OpenCode" "ENABLE_OPENCODE"
+    fi
 
     case "${ENABLE_CHATGPT,,}" in
         yes|true|1)
