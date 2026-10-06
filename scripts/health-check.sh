@@ -60,6 +60,7 @@ if feature_enabled ENABLE_AI_TOOLS yes; then
     if feature_enabled ENABLE_ANTIGRAVITY_DESKTOP no; then [[ -x "$HOME/.local/opt/antigravity/current/antigravity" || -x "$HOME/.local/opt/antigravity/current/Antigravity" ]] && pass "Antigravity Desktop available" || fail "Antigravity Desktop enabled but not found"; else pass "Antigravity Desktop disabled"; fi
     if feature_enabled ENABLE_FREEBUFF_CLI no; then check_command freebuff "Freebuff CLI"; else pass "Freebuff CLI disabled"; fi
     if feature_enabled ENABLE_FREEBUFF_DESKTOP no; then [[ -x "$HOME/.local/opt/freebuff/Freebuff.AppImage" ]] && pass "Freebuff Desktop available" || fail "Freebuff Desktop enabled but not found"; else pass "Freebuff Desktop disabled"; fi
+    if feature_enabled ENABLE_ZCODE no; then [[ -x "$HOME/.local/opt/zcode/ZCode.AppImage" ]] && pass "ZCode Desktop available" || fail "ZCode enabled but not found"; else pass "ZCode disabled"; fi
     if feature_enabled ENABLE_OLLAMA no; then
         if command -v ollama >/dev/null 2>&1; then
             pass "Ollama installed: $(ollama --version 2>/dev/null | head -n1)"
