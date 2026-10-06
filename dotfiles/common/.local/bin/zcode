@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ZCODE="$HOME/.local/opt/zcode/ZCode.AppImage"
+
+if [[ ! -x "$ZCODE" ]]; then
+    echo "ZCode is not installed." >&2
+    exit 127
+fi
+
+exec "$ZCODE" "$@"
