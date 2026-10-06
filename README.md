@@ -420,6 +420,8 @@ or detached from the terminal:
 zcode-silent
 ```
 
+Both managed ZCode launchers force software rendering with `LIBGL_ALWAYS_SOFTWARE=1` and pass Electron's `--disable-gpu` flag. This avoids GPU acceleration and is intended to make ZCode more reliable under WSLg or systems with problematic graphics drivers.
+
 The Linux AppImage may require FUSE compatibility support. On Ubuntu 24.04 the bootstrap can install `libfuse2t64` when necessary.
 
 ZCode does not automatically inherit `HTTP_PROXY` when its proxy field is blank. On proxy-restricted networks, configure the proxy inside **Settings → General** and restart ZCode.
