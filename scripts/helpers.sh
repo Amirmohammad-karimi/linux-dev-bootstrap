@@ -59,11 +59,17 @@ load_local_env() {
 feature_enabled() {
     local variable="$1"
     local default="${2:-no}"
-    local value="${!variable:-$default}"
+    local value
+
+    if declare -p "$variable" >/dev/null 2>&1; then
+        value="${!variable}"
+    else
+        value="$default"
+    fi
 
     case "${value,,}" in
-        yes) return 0 ;;
-        no) return 1 ;;
+        yes|true|1|on) return 0 ;;
+        no|false|0|off|"") return 1 ;;
         *) die "Invalid value for $variable: $value. Use yes or no." ;;
     esac
 }

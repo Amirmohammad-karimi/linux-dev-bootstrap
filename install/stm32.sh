@@ -28,6 +28,23 @@ find_cube_cli() {
     log_ok "cube CLI found: $CUBE_BIN"
 }
 prepare_directories() { ensure_directory "$CUBE_BUNDLE_PATH"; ensure_directory "$CMSIS_PACK_ROOT"; log_ok "STM32Cube directories ready"; }
+
+any_stm32_bundle_enabled() {
+    local feature
+    local bundle
+
+    while IFS='|' read -r feature bundle || [[ -n "${feature:-}${bundle:-}" ]]; do
+        feature="${feature#"${feature%%[![:space:]]*}"}"
+        [[ -z "$feature" || "$feature" == \#* ]] && continue
+
+        if feature_enabled "$feature" yes; then
+            return 0
+        fi
+    done < "$BUNDLE_FILE"
+
+    return 1
+}
+
 bundle_installed() { local specification="$1"; local name="${specification%@*}"; local version="${specification#*@}"; [[ -d "$CUBE_BUNDLE_PATH/$name/$version" ]]; }
 
 install_bundles() {
@@ -146,9 +163,16 @@ verify_stlink() {
 main() {
     if ! feature_enabled ENABLE_STM32 yes; then log_feature_disabled "STM32 development environment" "ENABLE_STM32"; return 0; fi
     install_stm32_extension
-    find_cube_cli
     prepare_directories
-    install_bundles
+
+    if any_stm32_bundle_enabled; then
+        find_cube_cli
+        install_bundles
+    else
+        CUBE_BIN="not required"
+        log_info "No STM32 bundles enabled; cube CLI is not required."
+    fi
+
     install_usb_dependencies
     install_udev_rules
     if is_wsl && feature_enabled ENABLE_STLINK_USBIPD yes; then "$ROOT_DIR/scripts/setup-stlink-usb.sh"

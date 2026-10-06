@@ -527,7 +527,7 @@ Different machines can therefore use the same repository while enabling differen
 ### Per-component feature switches
 
 `config/local.env.example` is the source of truth for installation switches.
-Every `ENABLE_*` option uses an explicit `"yes"` or `"no"` value.
+Every `ENABLE_*` option is documented with an explicit `"yes"` or `"no"` value. Older boolean aliases such as `true`/`false` remain accepted for compatibility.
 
 Switches cover individual base APT packages, Python components, nvm/Node.js,
 Docker components, Chrome, VS Code extensions, STM32 bundles and USB
