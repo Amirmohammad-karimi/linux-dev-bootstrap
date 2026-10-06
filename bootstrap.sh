@@ -38,6 +38,14 @@ main() {
     "$ROOT_DIR/install/base.sh"
 
     echo
+    log_info "Installing managed dotfiles..."
+    "$ROOT_DIR/scripts/setup-dotfiles.sh"
+
+    # Make newly managed launchers available to this bootstrap process.
+    export PATH="$HOME/.local/bin:$PATH"
+    hash -r
+
+    echo
     log_info "Running Python installation..."
 
     "$ROOT_DIR/install/python.sh"
@@ -85,10 +93,6 @@ main() {
 	"$ROOT_DIR/install/ai-tools.sh"
 	;;
     esac
-  
-    echo 
-    log_info "Installing managed dotfiles..."
-    "$ROOT_DIR/scripts/setup-dotfiles.sh"	
 
     echo
     log_ok "Bootstrap completed successfully."

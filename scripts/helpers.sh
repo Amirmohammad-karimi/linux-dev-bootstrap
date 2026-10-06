@@ -104,7 +104,11 @@ apt_update() {
     ensure_sudo
 
     log_info "Updating APT package index..."
-    sudo apt-get update
+
+    sudo apt-get \
+        -o APT::Update::Error-Mode=any \
+        -o Acquire::Retries=3 \
+        update
 
     APT_UPDATED=1
 

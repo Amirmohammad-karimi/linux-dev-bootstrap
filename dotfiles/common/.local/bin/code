@@ -2,14 +2,40 @@
 
 set -euo pipefail
 
-for candidate in \
-    /mnt/c/Users/*/AppData/Local/Programs/Microsoft\ VS\ Code/bin/code \
+POWERSHELL="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+
+if [[ ! -x "$POWERSHELL" ]]; then
+    echo "[ERROR] Windows PowerShell is not accessible from WSL." >&2
+    exit 127
+fi
+
+if ! command -v wslpath >/dev/null 2>&1; then
+    echo "[ERROR] wslpath is required to locate Windows VS Code." >&2
+    exit 127
+fi
+
+LOCALAPPDATA="$(
+    "$POWERSHELL" \
+        -NoProfile \
+        -NonInteractive \
+        -Command '[Environment]::GetFolderPath("LocalApplicationData")' |
+    tr -d '\r'
+)"
+
+LOCALAPPDATA_WSL="$(wslpath -u "$LOCALAPPDATA")"
+
+CANDIDATES=(
+    "$LOCALAPPDATA_WSL/Programs/Microsoft VS Code/bin/code"
     "/mnt/c/Program Files/Microsoft VS Code/bin/code"
-do
+    "/mnt/c/Program Files (x86)/Microsoft VS Code/bin/code"
+)
+
+for candidate in "${CANDIDATES[@]}"; do
     if [[ -x "$candidate" ]]; then
         exec "$candidate" "$@"
     fi
 done
 
-echo "Windows Visual Studio Code was not found." >&2
+echo "[ERROR] Windows Visual Studio Code was not found." >&2
+echo "[ERROR] Install VS Code on Windows, then rerun the bootstrap." >&2
 exit 127

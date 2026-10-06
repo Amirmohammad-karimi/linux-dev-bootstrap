@@ -425,8 +425,6 @@ install_antigravity_desktop() {
     fi
 
     log_ok "Antigravity desktop $version installed."
-
-    $ANTIGRAVITY_PATCHER_SCRIPT manager   
 }
 
 # ---------------------------------------------------------------------------

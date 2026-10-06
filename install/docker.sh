@@ -12,6 +12,10 @@ docker_server_available() {
     command_exists docker && docker info >/dev/null 2>&1
 }
 
+docker_engine_installed() {
+    package_installed docker-ce
+}
+
 docker_desktop_detected() {
     if ! docker_server_available; then
         return 1
@@ -111,8 +115,13 @@ install_docker_engine() {
         return 0
     fi
 
+    if docker_engine_installed; then
+        log_ok "Docker Engine already installed"
+        return 0
+    fi
+
     if is_wsl && command_exists docker; then
-        die "Docker CLI exists but the Docker daemon is unavailable. On WSL this may mean Docker Desktop is stopped or WSL integration is disabled. Refusing to install a second Docker Engine automatically."
+        die "Docker CLI exists but no local docker-ce installation is detected and the daemon is unavailable. Docker Desktop may be stopped or WSL integration may be disabled. Refusing to install a second Docker Engine automatically."
     fi
 
     remove_conflicting_packages
@@ -135,9 +144,17 @@ start_docker() {
         return 0
     fi
 
-    log_info "Starting Docker..."
-
     ensure_sudo
+
+    # The daemon may already be running while the current shell still lacks
+    # the newly granted docker-group membership.
+    if docker_engine_installed &&
+       sudo docker info >/dev/null 2>&1; then
+        log_ok "Docker daemon already running"
+        return 0
+    fi
+
+    log_info "Starting Docker..."
 
     if command_exists systemctl &&
        [[ "$(ps -p 1 -o comm=)" == "systemd" ]]; then
@@ -165,7 +182,12 @@ configure_docker_user() {
     fi
 
     if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx docker; then
-        log_ok "$TARGET_USER already belongs to docker group"
+        if docker_server_available; then
+            log_ok "$TARGET_USER already belongs to docker group"
+        else
+            log_warn "Docker group membership is configured but is not active in this shell."
+            log_warn "Open a new shell or run: newgrp docker"
+        fi
         return 0
     fi
 

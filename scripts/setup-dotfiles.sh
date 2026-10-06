@@ -26,19 +26,46 @@ remove_exact_line() {
     rm -f "$temporary"
 }
 
-prepare_target() {
-    local target="$1"
+backup_dotfile_conflicts() {
+    local source_root="$DOTFILES_DIR/common"
+    local backup_root="$HOME/.local/state/linux-dev-bootstrap/dotfiles-backup"
 
-    if [[ -L "$target" ]]; then
-        return 0
-    fi
+    while IFS= read -r -d '' source; do
+        local relative="${source#$source_root/}"
+        local target="$HOME/$relative"
 
-    if [[ -e "$target" ]]; then
-        log_warn "Existing unmanaged file found: $target"
+        [[ -e "$target" || -L "$target" ]] || continue
 
-        backup_file "$target"
-        rm -f "$target"
-    fi
+        # Keep a symlink that already points at the managed source.
+        if [[ -L "$target" ]]; then
+            local expected_target
+            local actual_target
+
+            expected_target="$(readlink -f "$source" 2>/dev/null || true)"
+            actual_target="$(readlink -f "$target" 2>/dev/null || true)"
+
+            if [[ -n "$expected_target" && "$actual_target" == "$expected_target" ]]; then
+                continue
+            fi
+        fi
+
+        local backup="$backup_root/$relative"
+
+        if [[ -e "$backup" || -L "$backup" ]]; then
+            backup="${backup}.$(date +%Y%m%d-%H%M%S)"
+        fi
+
+        log_warn "Existing unmanaged target found: $target"
+
+        mkdir -p "$(dirname "$backup")"
+        mv "$target" "$backup"
+
+        log_ok "Backup created: $backup"
+    done < <(
+        find "$source_root" \(
+            -type f -o -type l
+        \) -print0
+    )
 }
 
 install_dotfiles() {
@@ -46,8 +73,7 @@ install_dotfiles() {
 
     log_info "Installing managed dotfiles..."
 
-    prepare_target "$SHELL_CONFIG"
-    prepare_target "$GIT_CONFIG"
+    backup_dotfile_conflicts
 
     stow \
         --dir="$DOTFILES_DIR" \

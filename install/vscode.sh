@@ -12,13 +12,17 @@ INSTALLED_EXTENSIONS=""
 
 check_vscode() {
     if ! command_exists code; then
-        log_warn "VS Code CLI is not available."
-        log_warn "Windows VS Code must be accessible from WSL."
-        return 1
+        die "Managed VS Code wrapper is missing from PATH: $HOME/.local/bin/code"
     fi
 
     local version
-    version="$(code --version | head -n1)"
+
+    if ! version="$(code --version 2>/dev/null | head -n1)"; then
+        die "Windows VS Code is not installed or cannot be reached from WSL."
+    fi
+
+    [[ -n "$version" ]] ||
+        die "Windows VS Code did not report a version."
 
     log_ok "VS Code detected: $version"
 }
@@ -78,10 +82,7 @@ verify_vscode() {
 }
 
 main() {
-    if ! check_vscode; then
-        return 0
-    fi
-
+    check_vscode
     install_extensions
     verify_vscode
 }
