@@ -82,6 +82,12 @@ else
     pass "VS Code configuration disabled"
 fi
 
+if feature_enabled ENABLE_SLACK_CLI no; then
+    check_command slack "Slack CLI"
+else
+    pass "Slack CLI disabled"
+fi
+
 echo; echo "[INFO] Docker"
 if feature_enabled ENABLE_DOCKER yes; then
     feature_enabled ENABLE_DOCKER_CLI yes && check_command docker Docker

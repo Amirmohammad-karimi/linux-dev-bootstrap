@@ -110,6 +110,29 @@ The bootstrap adds the current user to the `docker` group when required.
 
 ---
 
+### General Applications
+
+Optional general-purpose developer tools include:
+
+- Google Chrome
+- Slack CLI
+
+Slack CLI is installed with Slack's official Linux installer when enabled:
+
+```bash
+ENABLE_SLACK_CLI="yes"
+```
+
+After installation, authenticate interactively when needed:
+
+```bash
+slack login
+```
+
+The bootstrap does not store Slack authentication credentials.
+
+---
+
 ### VS Code for WSL
 
 The bootstrap uses the Windows VS Code installation through WSL instead of installing a second Linux VS Code package.
@@ -576,6 +599,8 @@ ENABLE_FREEBUFF_DESKTOP="yes"
 
 ENABLE_ZCODE="yes"
 
+ENABLE_SLACK_CLI="yes"
+
 ENABLE_OLLAMA="no"
 OLLAMA_MODEL=""
 ```
@@ -588,7 +613,7 @@ Different machines can therefore use the same repository while enabling differen
 Every `ENABLE_*` option is documented with an explicit `"yes"` or `"no"` value. Older boolean aliases such as `true`/`false` remain accepted for compatibility.
 
 Switches cover individual base APT packages, Python components, nvm/Node.js,
-Docker components, Chrome, VS Code extensions, STM32 bundles and USB
+Docker components, Chrome, Slack CLI, VS Code extensions, STM32 bundles and USB
 dependencies, STM32CubeMX, and the supported AI applications.
 
 A value of `"no"` means the bootstrap does not explicitly install or manage
@@ -737,7 +762,7 @@ The silent launchers:
 - prevent GUI logs from filling the terminal
 - allow the terminal to be closed without normally terminating the GUI
 
-CLI tools such as Git, Docker, OpenCode, `agy`, Node.js, and STM32 command-line utilities intentionally do not use silent wrappers.
+CLI tools such as Git, Docker, OpenCode, `agy`, Slack CLI, Node.js, and STM32 command-line utilities intentionally do not use silent wrappers.
 
 ---
 
@@ -874,6 +899,7 @@ ChatGPT
 Antigravity
 Freebuff
 ZCode
+Slack CLI
 Ollama
 managed dotfiles
 WSL / WSLg

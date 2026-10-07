@@ -21,6 +21,7 @@ LOCAL_ENV="$REPO_ROOT/config/local.env"
 # ---------------------------------------------------------------------------
 
 ENABLE_GOOGLE_CHROME="${ENABLE_GOOGLE_CHROME:-no}"
+ENABLE_SLACK_CLI="${ENABLE_SLACK_CLI:-no}"
 
 # ---------------------------------------------------------------------------
 # Load machine-local configuration
@@ -105,6 +106,68 @@ install_google_chrome() {
 }
 
 
+
+# ---------------------------------------------------------------------------
+# Slack CLI
+# ---------------------------------------------------------------------------
+
+SLACK_CLI_INSTALLER_URL="https://downloads.slack-edge.com/slack-cli/install.sh"
+
+slack_cli_installed() {
+    command -v slack >/dev/null 2>&1 &&
+        slack --version --skip-update >/dev/null 2>&1
+}
+
+installed_slack_cli_version() {
+    slack --version --skip-update 2>/dev/null |
+        head -n1
+}
+
+install_slack_cli() {
+    if slack_cli_installed; then
+        log_ok "Slack CLI already installed ($(installed_slack_cli_version))"
+        return 0
+    fi
+
+    if command -v slack >/dev/null 2>&1; then
+        die "A command named 'slack' already exists but does not appear to be the Slack developer CLI. The official installer will not overwrite it."
+    fi
+
+    log_info "Installing Slack CLI..."
+
+    ensure_apt_dependency ENABLE_CA_CERTIFICATES ca-certificates "Slack CLI" yes
+    ensure_apt_dependency ENABLE_CURL curl "Slack CLI" yes
+    ensure_apt_dependency ENABLE_GIT git "Slack CLI" yes
+
+    require_command curl
+    require_command git
+
+    local installer
+    installer="$(mktemp)"
+
+    curl         --proto '=https'         --tlsv1.2         --fail         --silent         --show-error         --location         --retry 3         "$SLACK_CLI_INSTALLER_URL"         -o "$installer"
+
+    bash "$installer"
+    rm -f "$installer"
+
+    hash -r
+
+    # The official installer normally configures the command. If the binary
+    # was downloaded but the command is not in PATH yet, create the documented
+    # user-local symlink. ~/.local/bin is managed by this bootstrap.
+    if ! command -v slack >/dev/null 2>&1 &&
+       [[ -x "$HOME/.slack/bin/slack" ]]; then
+        create_symlink             "$HOME/.slack/bin/slack"             "$HOME/.local/bin/slack"
+        hash -r
+    fi
+
+    if ! slack_cli_installed; then
+        die "Slack CLI installation verification failed."
+    fi
+
+    log_ok "Slack CLI installed ($(installed_slack_cli_version))"
+}
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -131,6 +194,22 @@ main() {
             ;;
     esac
 
+    case "${ENABLE_SLACK_CLI,,}" in
+        yes|true|1)
+            ENABLE_SLACK_CLI="yes"
+            install_slack_cli
+            ;;
+
+        no|false|0|"")
+            ENABLE_SLACK_CLI="no"
+            log_info "Slack CLI disabled by config/local.env"
+            ;;
+
+        *)
+            die "Invalid ENABLE_SLACK_CLI value: $ENABLE_SLACK_CLI. Use yes or no."
+            ;;
+    esac
+
     echo
     log_info "General applications:"
 
@@ -142,6 +221,16 @@ main() {
         fi
     else
         echo "  Google Chrome: disabled by config/local.env"
+    fi
+
+    if [[ "$ENABLE_SLACK_CLI" == "yes" ]]; then
+        if slack_cli_installed; then
+            echo "  Slack CLI:     $(installed_slack_cli_version)"
+        else
+            echo "  Slack CLI:     not installed"
+        fi
+    else
+        echo "  Slack CLI:     disabled by config/local.env"
     fi
 }
 
