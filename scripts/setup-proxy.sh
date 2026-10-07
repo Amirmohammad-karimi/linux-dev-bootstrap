@@ -48,7 +48,7 @@ EOF
 )"
 
     if [[ -f "$APT_PROXY_FILE" ]] &&
-       [[ "$(sudo cat "$APT_PROXY_FILE" 2>/dev/null || true)" == "$desired" ]]; then
+       [[ "$(cat "$APT_PROXY_FILE" 2>/dev/null || true)" == "$desired" ]]; then
         log_ok "APT proxy already configured."
         return 0
     fi

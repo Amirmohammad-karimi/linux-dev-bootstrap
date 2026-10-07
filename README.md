@@ -253,7 +253,7 @@ Currently supported tools include:
 
 | Tool | Type | Optional |
 |---|---|---:|
-| OpenCode | CLI / coding agent | No |
+| OpenCode | CLI / coding agent | Yes |
 | ChatGPT | Desktop | Yes |
 | Antigravity | CLI | Yes |
 | Antigravity | Desktop | Yes |
@@ -574,6 +574,8 @@ ENABLE_ANTIGRAVITY_DESKTOP="yes"
 ENABLE_FREEBUFF_CLI="yes"
 ENABLE_FREEBUFF_DESKTOP="yes"
 
+ENABLE_ZCODE="yes"
+
 ENABLE_OLLAMA="no"
 OLLAMA_MODEL=""
 ```
@@ -655,7 +657,7 @@ A disconnected ST-LINK may appear as a warning rather than an error.
 
 ### `minimal`
 
-Installs the common Linux base environment.
+Installs the common Linux base environment, managed dotfiles, and Python toolchain.
 
 ### `development`
 
