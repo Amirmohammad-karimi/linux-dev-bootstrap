@@ -56,6 +56,42 @@ load_local_env() {
     fi
 }
 
+load_proxy_environment() {
+    local file="$1"
+
+    [[ -f "$file" ]] || return 0
+
+    local PROXY_ENABLED="no"
+    local HTTP_PROXY_URL=""
+    local HTTPS_PROXY_URL=""
+    local NO_PROXY=""
+
+    # shellcheck source=/dev/null
+    source "$file"
+
+    if ! feature_enabled PROXY_ENABLED no; then
+        return 0
+    fi
+
+    [[ -n "$HTTP_PROXY_URL" ]] ||
+        die "PROXY_ENABLED=yes requires HTTP_PROXY_URL in $file"
+
+    [[ -n "$HTTPS_PROXY_URL" ]] ||
+        HTTPS_PROXY_URL="$HTTP_PROXY_URL"
+
+    export HTTP_PROXY="$HTTP_PROXY_URL"
+    export HTTPS_PROXY="$HTTPS_PROXY_URL"
+    export http_proxy="$HTTP_PROXY_URL"
+    export https_proxy="$HTTPS_PROXY_URL"
+
+    if [[ -n "$NO_PROXY" ]]; then
+        export NO_PROXY
+        export no_proxy="$NO_PROXY"
+    fi
+
+    log_ok "Proxy environment enabled for bootstrap downloads."
+}
+
 feature_enabled() {
     local variable="$1"
     local default="${2:-no}"

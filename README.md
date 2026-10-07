@@ -502,6 +502,23 @@ linux-dev-bootstrap/
 
 `config/local.env` is intentionally excluded from Git because it contains machine-specific configuration.
 
+Optional proxy configuration is also machine-local. Copy:
+
+```bash
+cp config/proxy.env.example config/proxy.env
+```
+
+and enable it when the workstation needs a proxy:
+
+```bash
+PROXY_ENABLED="yes"
+HTTP_PROXY_URL="http://127.0.0.1:10808"
+HTTPS_PROXY_URL="http://127.0.0.1:10808"
+NO_PROXY="localhost,127.0.0.1"
+```
+
+The bootstrap exports the proxy variables for its download commands and writes a bootstrap-managed APT proxy file so `sudo apt` uses the same proxy.
+
 ---
 
 # Quick Start

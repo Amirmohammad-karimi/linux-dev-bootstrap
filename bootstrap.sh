@@ -7,7 +7,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$ROOT_DIR/scripts/helpers.sh"
 
 LOCAL_CONFIG="$ROOT_DIR/config/local.env"
+PROXY_CONFIG="$ROOT_DIR/config/proxy.env"
+
 load_local_env "$LOCAL_CONFIG"
+load_proxy_environment "$PROXY_CONFIG"
 
 PROFILE="${1:-full}"
 
@@ -30,6 +33,10 @@ main() {
     fi
 
     print_system_info
+
+    echo
+    log_info "Configuring network proxy settings..."
+    "$ROOT_DIR/scripts/setup-proxy.sh"
 
     echo
     log_info "Selected profile: $PROFILE"
