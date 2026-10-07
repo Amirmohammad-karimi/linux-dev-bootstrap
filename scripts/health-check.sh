@@ -10,7 +10,57 @@ pass(){ printf '[OK]   %s\n' "$1"; }
 warn(){ printf '[WARN] %s\n' "$1"; WARNINGS=$((WARNINGS+1)); }
 fail(){ printf '[FAIL] %s\n' "$1"; ERRORS=$((ERRORS+1)); }
 check_command(){ local command="$1"; local name="${2:-$1}"; command -v "$command" >/dev/null 2>&1 && pass "$name: $(command -v "$command")" || fail "$name not found"; }
-check_enabled_command(){ local feature="$1" default="$2" command="$3" name="${4:-$3}"; feature_enabled "$feature" "$default" && check_command "$command" "$name" || pass "$name disabled ($feature=no)"; }
+check_enabled_command(){
+    local feature="$1"
+    local default="$2"
+    local command="$3"
+    local name="${4:-$3}"
+
+    if feature_enabled "$feature" "$default"; then
+        check_command "$command" "$name"
+    else
+        pass "$name disabled ($feature=no)"
+    fi
+}
+
+stm32_bundle_enabled() {
+    local manifest="$ROOT_DIR/packages/stm32-bundles.txt"
+    local feature
+    local bundle
+
+    [[ -f "$manifest" ]] || return 1
+
+    while IFS='|' read -r feature bundle || [[ -n "${feature:-}${bundle:-}" ]]; do
+        feature="${feature#"${feature%%[![:space:]]*}"}"
+        [[ -z "$feature" || "$feature" == \#* ]] && continue
+
+        if feature_enabled "$feature" yes; then
+            return 0
+        fi
+    done < "$manifest"
+
+    return 1
+}
+
+stm32_gcc_path() {
+    local manifest="$ROOT_DIR/packages/stm32-bundles.txt"
+    local spec
+
+    spec="$(
+        awk -F'|' '
+            $1 == "ENABLE_STM32_GCC" {
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2)
+                print $2
+                exit
+            }
+        ' "$manifest"
+    )"
+
+    [[ -n "$spec" ]] || return 1
+
+    local version="${spec#*@}"
+    printf '%s\n' "$HOME/.local/share/stm32cube/bundles/gnu-tools-for-stm32/$version/bin/arm-none-eabi-gcc"
+}
 
 echo; echo "========================================"; echo "Linux Bootstrap Health Check"; echo "========================================"; echo
 print_system_info
@@ -26,7 +76,11 @@ if feature_enabled ENABLE_NODE_TOOLCHAIN yes; then
     check_enabled_command ENABLE_NODEJS yes node Node.js
     feature_enabled ENABLE_NODEJS yes && check_command npm npm
 else pass "Node.js toolchain disabled"; fi
-feature_enabled ENABLE_VSCODE yes && check_command code "VS Code" || pass "VS Code configuration disabled"
+if feature_enabled ENABLE_VSCODE yes; then
+    check_command code "VS Code"
+else
+    pass "VS Code configuration disabled"
+fi
 
 echo; echo "[INFO] Docker"
 if feature_enabled ENABLE_DOCKER yes; then
@@ -40,17 +94,44 @@ else pass "Docker disabled"; fi
 
 echo; echo "[INFO] STM32"
 if feature_enabled ENABLE_STM32 yes; then
-    check_command cube "STM32 cube CLI"
-    if feature_enabled ENABLE_STM32_GCC yes; then
-        GCC="$HOME/.local/share/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc"
-        [[ -x "$GCC" ]] && pass "GNU Arm GCC: $("$GCC" --version | head -n1)" || warn "GNU Arm GCC enabled but bundle not found"
-    else pass "GNU Arm GCC disabled"; fi
-    if feature_enabled ENABLE_STM32CUBEMX yes; then command -v stm32cubemx >/dev/null 2>&1 && pass "STM32CubeMX launcher available" || warn "STM32CubeMX enabled but launcher not found"
-    else pass "STM32CubeMX disabled"; fi
-    if feature_enabled ENABLE_USBUTILS yes && command -v lsusb >/dev/null 2>&1; then
-        lsusb | grep -qiE '0483:374[0-9a-f]|0483:375[0-9a-f]' && pass "ST-LINK visible in Linux" || warn "No ST-LINK currently visible"
+    if stm32_bundle_enabled; then
+        check_command cube "STM32 cube CLI"
+    else
+        pass "STM32 cube CLI not required (all bundles disabled)"
     fi
-else pass "STM32 development environment disabled"; fi
+
+    if feature_enabled ENABLE_STM32_GCC yes; then
+        GCC="$(stm32_gcc_path || true)"
+
+        if [[ -n "$GCC" && -x "$GCC" ]]; then
+            pass "GNU Arm GCC: $("$GCC" --version | head -n1)"
+        else
+            warn "GNU Arm GCC enabled but bundle not found"
+        fi
+    else
+        pass "GNU Arm GCC disabled"
+    fi
+
+    if feature_enabled ENABLE_STM32CUBEMX yes; then
+        if command -v stm32cubemx >/dev/null 2>&1; then
+            pass "STM32CubeMX launcher available"
+        else
+            warn "STM32CubeMX enabled but launcher not found"
+        fi
+    else
+        pass "STM32CubeMX disabled"
+    fi
+
+    if feature_enabled ENABLE_USBUTILS yes && command -v lsusb >/dev/null 2>&1; then
+        if lsusb | grep -qiE '0483:374[0-9a-f]|0483:375[0-9a-f]'; then
+            pass "ST-LINK visible in Linux"
+        else
+            warn "No ST-LINK currently visible"
+        fi
+    fi
+else
+    pass "STM32 development environment disabled"
+fi
 
 echo; echo "[INFO] AI tools"
 if feature_enabled ENABLE_AI_TOOLS yes; then
