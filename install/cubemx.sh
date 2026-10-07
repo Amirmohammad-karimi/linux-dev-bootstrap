@@ -173,31 +173,6 @@ open_official_download_page() {
 }
 
 
-wait_for_official_download() {
-    local zip
-
-    log_info "Waiting for STM32CubeMX Linux $CUBEMX_VERSION download..."
-    log_info "Login/accept the ST download in your browser."
-    log_info "The bootstrap will continue automatically when the ZIP finishes downloading."
-    log_info "Press Ctrl+C if you want to cancel."
-
-    while true; do
-
-        zip="$(find_installer_zip || true)"
-
-        if [[ -n "$zip" ]]; then
-
-            if validate_zip "$zip"; then
-                printf '%s\n' "$zip"
-                return 0
-            fi
-
-        fi
-
-        sleep 2
-    done
-}
-
 CUBEMX_ZIP=""
 
 obtain_installer_zip() {
@@ -304,7 +279,7 @@ install_cubemx() {
         echo
 
         log_info "Install STM32CubeMX into:"
-        printf '  %s\n' "$CUBEMX_INSTALL_DIR"
+        printf '  %s\n' "$CUBEMX_DEFAULT_INSTALL_DIR"
 
         echo
         log_info "If the installer offers automatic-install script generation,"
@@ -333,7 +308,7 @@ configure_cubemx() {
 
     ensure_directory "$CUBEMX_ROOT"
 
-    ln -sfn \
+    create_symlink \
         "$CUBEMX_INSTALL_DIR" \
         "$CUBEMX_CURRENT"
 
